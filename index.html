@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fesdicta's Vault</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="container nav">
+  <a href="#" class="logo" aria-label="Fesdicta's Vault — go to shop" onclick="showView('shop');return false">
+    <img src="./img/mylogo.jpg" alt="Fesdicta's Vault">
+  </a>
+    <div>
+      <button onclick="openTracking()">📦 Track Order</button>
+      <button onclick="showView('shop')">🛍️ Shop</button>
+      <button onclick="showView('admin')" style="background:#111827">⚙️ Admin</button>
+      <span style="margin-left:10px"><span id="cartCount">0</span> 🛒 <button onclick="openCart()">Cart</button></span>
+    </div>
+  </div>
+</header>
+
+
+<!-- SHOP VIEW -->
+<div id="shopView" class="view active">
+  <div class="container">
+    <div class="hero">
+      <div class="hero-slides" aria-hidden="true">
+        <img class="hero-slide active" src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+        <img class="hero-slide" src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+        <img class="hero-slide" src="https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+        <img class="hero-slide" src="https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+        <img class="hero-slide" src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+        <img class="hero-slide" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
+      </div>
+      <div class="hero-content"><h1>New Drops - Fesdicta's Vault</h1><p>Pay with MoMo or Pay on Delivery - Fast Delivery</p></div>
+    </div>
+    <div class="filters"><input id="search" placeholder="Search shirt, dress..."><select id="catFilter"><option value="">All Categories</option><option>Shirts</option><option>Dresses</option><option>Jeans</option><option>T-Shirts</option><option>Shoes</option><option>Bags</option></select></div>
+    <div id="products" class="grid"></div>
+  </div>
+</div>
+
+<!-- ADMIN VIEW -->
+<div id="adminView" class="view">
+  <div id="adminAuth" class="container card" hidden>
+    <h2>Admin sign in</h2>
+    <p id="adminAuthMessage" role="status" aria-live="polite">Sign in with an authorized admin account.</p>
+    <form id="adminLoginForm">
+      <input id="adminEmail" type="email" autocomplete="username" placeholder="Admin email" required>
+      <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button type="submit">Sign in</button>
+    </form>
+    <button id="adminSignOut" type="button" onclick="signOutAdmin()" hidden>Sign out</button>
+  </div>
+  <div id="adminContent" hidden>
+  <div class="container" style="margin-top:20px;text-align:right"><button type="button" onclick="signOutAdmin()">Sign out</button></div>
+  <div class="container admin-grid">
+    <div>
+      <div class="card">
+        <h2>Add New Clothes</h2>
+        <form id="addForm">
+          <input id="pName" placeholder="Name e.g. Vintage Shirt Blue" required>
+          <div style="display:flex;gap:8px"><input id="pPrice" type="number" min="0.01" step="0.01" placeholder="Price GHS" required style="flex:1"><input id="pOld" type="number" min="0" step="0.01" placeholder="Old Price (optional)" style="flex:1"></div>
+          <div style="display:flex;gap:8px"><select id="pCat" style="flex:1"><option>Shirts</option><option>Dresses</option><option>Jeans</option><option>T-Shirts</option><option>Shoes</option><option>Bags</option></select><input id="pSize" placeholder="Sizes M,L,XL" style="flex:1"></div>
+          <input id="pStock" type="number" min="0" step="1" placeholder="Stock Qty">
+          <label for="pImages">Product pictures (choose up to 4 from your device)</label>
+          <input id="pImages" type="file" accept="image/*" multiple required>
+          <small id="pImagesHelp">Select up to 4 images. Select all pictures together in the file picker.</small>
+          <div id="pImagesPreview" class="image-selection-preview" aria-live="polite"></div>
+          <fieldset class="product-detail-fields">
+            <legend>Product details</legend>
+            <p>Add useful details such as material, fit, colour, or care instructions.</p>
+            <div id="productDetailRows">
+              <div class="product-detail-row">
+                <input class="product-detail-label" aria-label="Detail name" placeholder="e.g. Material">
+                <input class="product-detail-value" aria-label="Detail value" placeholder="e.g. 100% cotton">
+                <button class="remove-detail" type="button" aria-label="Remove detail">×</button>
+              </div>
+            </div>
+            <button id="addProductDetail" class="add-detail" type="button">+ Add another detail</button>
+          </fieldset>
+          <button type="submit">Add Product</button>
+        </form>
+      </div>
+      <div class="stats">
+        <div class="stat-box"><b id="totalProducts">0</b><small>Products</small></div>
+        <div class="stat-box"><b id="totalOrders">0</b><small>Orders</small></div>
+        <div class="stat-box" style="background:#dcfce7"><b id="totalPaid">GHS 0</b><small>Paid Total</small></div>
+      </div>
+      <div class="card"><h3>My Products</h3><div id="adminProducts"></div></div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Orders Dashboard</h2>
+        <div class="filter-bar">
+          <button class="active" onclick="filterOrders('all',this)">All</button>
+          <button onclick="filterOrders('paid',this)">✅ Paid</button>
+          <button onclick="filterOrders('unpaid',this)">🟡 Unpaid</button>
+          <button onclick="filterOrders('New',this)">New</button>
+          <button onclick="filterOrders('Delivered',this)">Delivered</button>
+        </div>
+        <div id="ordersList">Loading orders...</div>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- CART MODAL -->
+<div id="cartModal" class="modal">
+  <div class="modal-content">
+    <span onclick="closeCart()" style="float:right;cursor:pointer;font-size:22px">&times;</span>
+    <h3>Checkout</h3>
+    <div id="cartItems"></div>
+    <h4>Total: GHS <span id="cartTotal">0</span></h4>
+    <hr>
+    <input id="custName" placeholder="Your Full Name" required>
+    <input id="custPhone" placeholder="Phone 024..." required>
+    <input id="custAddr" placeholder="Address e.g. East Legon">
+    <h4>Choose Payment:</h4>
+    <div class="payment-options">
+      <label class="payment-option"><input type="radio" name="payMethod" value="delivery" checked> <b>🚚 Pay on Delivery</b></label>
+      <label class="payment-option"><input type="radio" name="payMethod" value="paystack"> <b>💳 Pay Now with MoMo / Card (Paystack)</b></label>
+    </div>
+    <button onclick="checkout()">Place Order</button>
+  </div>
+</div>
+
+<div id="trackingModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close" type="button" onclick="closeTracking()" aria-label="Close order tracking">&times;</button>
+    <h3>Track your order</h3>
+    <p>Enter the private tracking reference from your order confirmation.</p>
+    <form id="trackingForm">
+      <label for="trackingCode">Tracking reference</label>
+      <input id="trackingCode" name="trackingCode" autocomplete="off" placeholder="Paste your order tracking reference" required>
+      <button type="submit">Check order status</button>
+    </form>
+    <div id="trackingResult" class="tracking-result" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<div id="confirmationModal" class="modal">
+  <div class="modal-content confirmation-content">
+    <button class="modal-close" type="button" onclick="closeConfirmation()" aria-label="Close order confirmation">&times;</button>
+    <div class="confirmation-icon" aria-hidden="true">✓</div>
+    <h3>Order received</h3>
+    <p id="confirmationMessage">Your order has been placed.</p>
+    <div class="tracking-reference">
+      <small>Your private tracking reference</small>
+      <code id="confirmationTrackingCode"></code>
+      <button type="button" class="copy-reference" onclick="copyTrackingReference()">Copy reference</button>
+    </div>
+    <p class="confirmation-note">Save this reference to check your order status later.</p>
+    <button type="button" onclick="closeConfirmation();openTracking()">Track this order</button>
+  </div>
+</div>
+
+<a class="whatsapp-contact" href="https://wa.me/233551971169?text=Hello%20Fesdicta%27s%20Vault%2C%20I%20have%20a%20question%20about%20your%20products." target="_blank" rel="noopener noreferrer" aria-label="Chat with Fesdicta's Vault on WhatsApp">
+  <svg class="whatsapp-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M20 11.8a8 8 0 0 1-11.8 7L4 20l1.2-4A8 8 0 1 1 20 11.8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M9 8.2c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.7 1.6c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4 0 .6.5.9 1.2 1.6 2.1 2.1.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.5.7c.3.1.4.3.4.5 0 .5-.3 1.3-.8 1.7-.5.5-1.2.7-2 .6-1.1-.2-2.5-.9-3.8-2.1-1.3-1.3-2.2-2.9-2.4-4-.1-.7.2-1.3.6-1.8.3-.4.7-.6 1-.6Z" fill="currentColor"/>
+  </svg>
+  <span>Chat with us</span>
+</a>
+
+<footer class="footer">
+  <div class="footer-socials">
+    <h2>Socials</h2>
+    <a class="social-link" href="https://www.tiktok.com/@fesdicta?_r=1&amp;_t=ZS-9APXcBmkw45" target="_blank" rel="noopener noreferrer" aria-label="Visit Fesdicta's Vault on TikTok">
+      <svg class="tiktok-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M19.6 7.1a6.8 6.8 0 0 1-4.2-1.4v9.1a6.1 6.1 0 1 1-5.3-6.1v3.2a2.9 2.9 0 1 0 2.1 2.8V2.5h3.2c.2 2.1 1.7 3.9 4.2 4.2z"/>
+      </svg>
+      <span>TikTok</span>
+    </a>
+  </div>
+  <p class="footer-copyright">&copy; Fesdicta's Vault. All rights reserved.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
