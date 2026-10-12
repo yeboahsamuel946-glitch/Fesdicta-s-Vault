@@ -38,7 +38,13 @@
       </div>
       <div class="hero-content"><h1>New Drops - Fesdicta's Vault</h1><p>Pay with MoMo or Pay on Delivery - Fast Delivery</p></div>
     </div>
-    <div class="filters"><input id="search" placeholder="Search shirt, dress..."><select id="catFilter"><option value="">All Categories</option><option>Shirts</option><option>Dresses</option><option>Jeans</option><option>T-Shirts</option><option>Shoes</option><option>Bags</option></select></div>
+    <div class="filters"><input id="search" placeholder="Search shirt, dress..."><select id="catFilter"><option value="">All Categories</option><option>Shirts</option><option>Dresses</option><option>Jeans</option> 
+      <option>T-Shirts</option><option>Shoes</option>
+      <option>Bags</option>
+      <option>Skincare</option>
+      <option>Cosmetics</option>
+      <option>Slippers</option>
+    </select></div>
     <div id="products" class="grid"></div>
   </div>
 </div>
@@ -64,7 +70,7 @@
         <form id="addForm">
           <input id="pName" placeholder="Name e.g. Vintage Shirt Blue" required>
           <div style="display:flex;gap:8px"><input id="pPrice" type="number" min="0.01" step="0.01" placeholder="Price GHS" required style="flex:1"><input id="pOld" type="number" min="0" step="0.01" placeholder="Old Price (optional)" style="flex:1"></div>
-          <div style="display:flex;gap:8px"><select id="pCat" style="flex:1"><option>Shirts</option><option>Dresses</option><option>Jeans</option><option>T-Shirts</option><option>Shoes</option><option>Bags</option></select><input id="pSize" placeholder="Sizes M,L,XL" style="flex:1"></div>
+          <div style="display:flex;gap:8px"><select id="pCat" style="flex:1"><option>Shirts</option><option>Dresses</option><option>Jeans</option><option>T-Shirts</option><option>Shoes</option><option>Bags</option><option>Skincare</option><option>Cosmetics</option><option>Slippers</option></select><input id="pSize" placeholder="Sizes M,L,XL" style="flex:1"></div>
           <input id="pStock" type="number" min="0" step="1" placeholder="Stock Qty">
           <label for="pImages">Product pictures (choose up to 4 from your device)</label>
           <input id="pImages" type="file" accept="image/*" multiple required>
@@ -178,6 +184,7 @@
     </a>
   </div>
   <p class="footer-copyright">&copy; Fesdicta's Vault. All rights reserved.</p>
+  <p class="footer-developer"><a href="https://wa.me/233549330222" target="_blank" rel="noopener noreferrer">Contact developer</a></p>
 </footer>
 
 <script src="script.js"></script>
