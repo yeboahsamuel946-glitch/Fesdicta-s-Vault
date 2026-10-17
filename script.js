@@ -3,10 +3,6 @@ const SUPABASE_URL = "https://brnbgssdiwgzcbxhgnai.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybmJnc3NkaXdnemNieGhnbmFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzODEyODAsImV4cCI6MjEwNjk1NzI4MH0.GTdVtUUXeflCO4mgSiPGkK7Gh5jXsG_fKGTDK6QagqI";
 const PAYSTACK_PUBLIC_KEY = "pk_test_3593e90efaaf79ab84e683acab2ec0646803e035";
 const ADMIN_WHATSAPP = "+233551971169"; // Owner number e.g 233244123456
-const ADMIN_EMAILS = new Set([
-  'yeboahsamuel946@gmail.com',
-  'ntembenedicta904@gmail.com'
-]);
 // === END CONFIG ===
 
 const { createClient } = supabase;
@@ -27,63 +23,69 @@ let allOrders = [];
 let cart = JSON.parse(localStorage.getItem('cart')||'[]');
 let currentFilter = 'all';
 let currentUser = null;
+let currentUserRole = null;
+let profileLookupVersion = 0;
+let customerAuthMode = 'signin';
+let pendingProductId = null;
 
 // VIEW SWITCHER
 function showView(viewName){
+  const view=document.getElementById(viewName+'View');
+  if(!view) return;
+  if(viewName==='admin'&&!isAdminUser()){
+    alert('This page is not available.');
+    return;
+  }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById(viewName+'View').classList.add('active');
+  view.classList.add('active');
   if(viewName==='admin'){
-    updateAdminAccess();
-    if(isAdminUser()) loadAdmin();
+    loadAdmin();
   }
   if(viewName==='shop') fetchProducts();
 }
 
-function isAdminUser(user=currentUser){
-  return Boolean(user?.email&&ADMIN_EMAILS.has(user.email.toLowerCase()));
+function isAdminUser(){
+  return currentUserRole==='admin';
 }
-function updateAdminAccess(message){
-  const authorized=isAdminUser();
-  document.getElementById('adminAuth').hidden=authorized;
-  document.getElementById('adminContent').hidden=!authorized;
-  document.getElementById('adminSignOut').hidden=!currentUser;
-  const authMessage=document.getElementById('adminAuthMessage');
-  authMessage.textContent=message||(currentUser
-    ? `The account ${currentUser.email} is not authorized to access the admin section.`
-    : 'Sign in with an authorized admin account.');
-}
-async function signInAdmin(event){
-  event.preventDefault();
-  const email=document.getElementById('adminEmail').value.trim().toLowerCase();
-  if(!ADMIN_EMAILS.has(email)){
-    updateAdminAccess('This email is not authorized to access the admin section.');
-    return;
-  }
-  if(!isSupabaseConfigured()){
-    updateAdminAccess('Supabase is not configured. Update the project URL and public key in script.js.');
-    return;
-  }
-  const {data,error}=await client.auth.signInWithPassword({
-    email,
-    password:document.getElementById('adminPassword').value
-  });
-  if(error){
-    updateAdminAccess(`Sign in failed: ${error.message}`);
-    return;
-  }
-  currentUser=data.user;
+async function loadCurrentUserRole(user){
+  const lookupVersion=++profileLookupVersion;
+  currentUserRole=null;
   updateAdminAccess();
-  if(isAdminUser()) await loadAdmin();
+  if(!user?.email) return;
+  const {data,error}=await client.from('profiles')
+    .select('role')
+    .eq('email',user.email.toLowerCase())
+    .maybeSingle();
+  if(lookupVersion!==profileLookupVersion||currentUser?.id!==user.id) return;
+  if(error){
+    console.error('Could not check the signed-in user profile:',error);
+    alert(`Could not check your account role in the profiles table: ${error.message}. Admin access will remain disabled.`);
+    updateAdminAccess();
+    return;
+  }
+  currentUserRole=String(data?.role||'').toLowerCase()==='admin'?'admin':'user';
+  updateAdminAccess();
+  if(isAdminUser()&&document.getElementById('adminView').classList.contains('active')) loadAdmin();
 }
-async function signOutAdmin(){
+function updateAdminAccess(){
+  const authorized=isAdminUser();
+  document.getElementById('adminContent').hidden=!authorized;
+  document.getElementById('adminNavButton').hidden=!authorized;
+  document.getElementById('customerSignInButton').hidden=Boolean(currentUser);
+  document.getElementById('customerSignUpButton').hidden=Boolean(currentUser);
+  document.getElementById('customerSignOutButton').hidden=!currentUser;
+}
+async function signOutCustomer(){
   const {error}=await client.auth.signOut();
   if(error){
     alert(`Sign out failed: ${error.message}`);
     return;
   }
   currentUser=null;
+  currentUserRole=null;
   allOrders=[];
-  updateAdminAccess('You have been signed out.');
+  updateAdminAccess();
+  if(document.getElementById('adminView').classList.contains('active')) showView('shop');
 }
 
 // ========== SHOP LOGIC ==========
@@ -160,6 +162,12 @@ function productImages(product){
 }
 function addToCart(id){
   const prod=allProducts.find(p=>p.id===id);
+  if(!prod) return;
+  if(!currentUser){
+    pendingProductId=id;
+    openCustomerAuth();
+    return;
+  }
   const existing=cart.find(c=>c.id===id);
   if(existing) existing.qty+=1; else cart.push({id, name:prod.name, price:prod.price, qty:1});
   localStorage.setItem('cart',JSON.stringify(cart));
@@ -169,6 +177,116 @@ function addToCart(id){
 function updateCartCount(){ const el=document.getElementById('cartCount'); if(el) el.innerText=cart.reduce((s,c)=>s+c.qty,0); }
 function openCart(){ renderCart(); document.getElementById('cartModal').style.display='flex'; }
 function closeCart(){ document.getElementById('cartModal').style.display='none'; }
+function openCustomerAuth(mode='signin'){
+  customerAuthMode=mode==='signup'?'signup':'signin';
+  updateCustomerAuthPrompt();
+  document.getElementById('customerAuthMessage').textContent='';
+  document.getElementById('customerAuthModal').style.display='flex';
+  document.getElementById('customerEmail').focus();
+}
+function updateCustomerAuthPrompt(){
+  const action=pendingProductId?'add products to your cart':'place your order';
+  const resetRequest=customerAuthMode==='reset-request';
+  const updatePassword=customerAuthMode==='update-password';
+  const signIn=customerAuthMode==='signin';
+  const password=document.getElementById('customerPassword');
+  document.getElementById('customerAuthIntro').textContent=resetRequest
+    ? 'Enter the email address associated with your account and we will send you a password reset link.'
+    : updatePassword
+      ? 'Choose a new password for your account.'
+      : `Please sign in or create an account with your email before you ${action}.`;
+  document.getElementById('customerAuthTitle').textContent=resetRequest
+    ? 'Reset your password'
+    : updatePassword
+      ? 'Choose a new password'
+      : signIn
+        ? `Sign in to ${action}`
+        : `Create an account to ${action}`;
+  document.getElementById('customerAuthSubmit').textContent=resetRequest
+    ? 'Send reset link'
+    : updatePassword
+      ? 'Update password'
+      : signIn
+        ? 'Sign in'
+        : 'Create account';
+  const toggle=document.getElementById('customerAuthToggle');
+  toggle.textContent=signIn?'Create an account':'I already have an account';
+  toggle.hidden=resetRequest||updatePassword;
+  document.getElementById('customerForgotPassword').hidden=!signIn;
+  document.getElementById('customerPasswordLabel').hidden=resetRequest;
+  password.hidden=resetRequest;
+  password.required=!resetRequest;
+  password.autocomplete=signIn?'current-password':'new-password';
+}
+function closeCustomerAuth(){ document.getElementById('customerAuthModal').style.display='none'; }
+function toggleCustomerAuthMode(){
+  customerAuthMode=customerAuthMode==='signin'?'signup':'signin';
+  updateCustomerAuthPrompt();
+  document.getElementById('customerAuthMessage').textContent='';
+}
+function openPasswordReset(){
+  customerAuthMode='reset-request';
+  updateCustomerAuthPrompt();
+  document.getElementById('customerAuthMessage').textContent='';
+  document.getElementById('customerAuthModal').style.display='flex';
+  document.getElementById('customerEmail').focus();
+}
+async function authenticateCustomer(event){
+  event.preventDefault();
+  const message=document.getElementById('customerAuthMessage');
+  if(!isSupabaseConfigured()){
+    message.textContent='Sign-in is unavailable because the store is not connected.';
+    return;
+  }
+  const email=document.getElementById('customerEmail').value.trim().toLowerCase();
+  const password=document.getElementById('customerPassword').value;
+  if(customerAuthMode==='reset-request'){
+    if(window.location.protocol==='file:'){
+      message.textContent='Password reset requires the site to be open through a web server or its deployed URL. Open your localhost address and try again.';
+      return;
+    }
+    const {error}=await client.auth.resetPasswordForEmail(email,{
+      redirectTo:`${window.location.origin}${window.location.pathname}`
+    });
+    if(error){
+      message.textContent=error.message;
+      return;
+    }
+    message.textContent='If an account exists for that email, a password reset link has been sent.';
+    return;
+  }
+  if(customerAuthMode==='update-password'){
+    const {error}=await client.auth.updateUser({password});
+    if(error){
+      message.textContent=error.message;
+      return;
+    }
+    closeCustomerAuth();
+    alert('Your password has been updated. You are now signed in.');
+    return;
+  }
+  const result=customerAuthMode==='signin'
+    ? await client.auth.signInWithPassword({email,password})
+    : await client.auth.signUp({email,password});
+  if(result.error){
+    message.textContent=result.error.message;
+    return;
+  }
+  if(!result.data.session){
+    message.textContent='Check your email to confirm your account, then sign in to place your order.';
+    return;
+  }
+  currentUser=result.data.user;
+  await loadCurrentUserRole(currentUser);
+  closeCustomerAuth();
+  if(pendingProductId){
+    const productId=pendingProductId;
+    pendingProductId=null;
+    addToCart(productId);
+  }else if(document.getElementById('cartModal').style.display==='flex'){
+    await checkout();
+  }
+}
 function renderCart(){
   const el=document.getElementById('cartItems');
   if(!cart.length){el.innerHTML='<p>Cart empty</p>'; document.getElementById('cartTotal').innerText='0'; return;}
@@ -181,6 +299,7 @@ async function checkout(){
   const name=document.getElementById('custName').value.trim(), phone=document.getElementById('custPhone').value.trim(), addr=document.getElementById('custAddr').value.trim();
   if(!name||!phone){alert('Enter name and phone');return;}
   if(!cart.length){alert('Cart empty');return;}
+  if(!currentUser){openCustomerAuth();return;}
   const total=cart.reduce((s,c)=>s+c.price*c.qty,0);
   if(!cart.every(item=>Number.isFinite(Number(item.price))&&Number(item.price)>0&&Number.isFinite(Number(item.qty))&&Number(item.qty)>0)||!Number.isFinite(total)||total<=0){
     alert('Your order has an invalid amount. Remove invalid items or contact the store.');
@@ -376,11 +495,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
       heroSlides[activeSlide].classList.add('active');
     },4500);
   }
-  document.getElementById('adminLoginForm').addEventListener('submit',signInAdmin);
-  client.auth.onAuthStateChange((_event,session)=>{
+  document.getElementById('customerAuthForm').addEventListener('submit',authenticateCustomer);
+  client.auth.onAuthStateChange((event,session)=>{
     currentUser=session?.user||null;
+    currentUserRole=null;
     updateAdminAccess();
+    if(event==='PASSWORD_RECOVERY'&&currentUser){
+      customerAuthMode='update-password';
+      updateCustomerAuthPrompt();
+      document.getElementById('customerEmail').value=currentUser.email||'';
+      document.getElementById('customerAuthMessage').textContent='';
+      document.getElementById('customerAuthModal').style.display='flex';
+      document.getElementById('customerPassword').focus();
+    }
     if(!isAdminUser()){
+      if(document.getElementById('adminView').classList.contains('active')) showView('shop');
       allOrders=[];
       document.getElementById('totalOrders').textContent='0';
       document.getElementById('totalPaid').textContent='GHS 0';
@@ -389,15 +518,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }else if(document.getElementById('adminView').classList.contains('active')){
       loadAdmin();
     }
+    if(currentUser){
+      const user=currentUser;
+      window.setTimeout(()=>loadCurrentUserRole(user),0);
+    }else{
+      profileLookupVersion++;
+    }
   });
   client.auth.getSession().then(({data,error})=>{
     if(error){
-      updateAdminAccess(`Could not check the current sign-in: ${error.message}`);
+      alert(`Could not check the current sign-in: ${error.message}`);
       return;
     }
     currentUser=data.session?.user||null;
     updateAdminAccess();
-    if(isAdminUser()&&document.getElementById('adminView').classList.contains('active')) loadAdmin();
+    if(currentUser) loadCurrentUserRole(currentUser);
   });
   const addForm=document.getElementById('addForm');
   if(addForm){

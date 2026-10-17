@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fesdicta's Vault</title>
+  <title>Fesdicta's Vault | Fashion Store in Sunyani, Ghana</title>
+  <meta name="description" content="Shop quality dresses, shirts, jeans, t-shirts, shoes and bags at Fesdicta's Vault. Pay with MoMo or Pay on Delivery. Fast delivery across Ghana.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <meta property="og:title" content="Fesdicta's Vault">
+  <meta property="og:description" content="Ghana fashion store - Dresses, shirts, jeans, shoes, bags. MoMo & Pay on Delivery.">
+  <meta property="og:image" content="logo.png">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
@@ -17,7 +22,10 @@
     <div>
       <button onclick="openTracking()">📦 Track Order</button>
       <button onclick="showView('shop')">🛍️ Shop</button>
-      <button onclick="showView('admin')" style="background:#111827">⚙️ Admin</button>
+      <button id="customerSignInButton" onclick="openCustomerAuth()">Sign in</button>
+      <button id="customerSignUpButton" onclick="openCustomerAuth('signup')">Create account</button>
+      <button id="customerSignOutButton" onclick="signOutCustomer()" hidden>Sign out</button>
+      <button id="adminNavButton" onclick="showView('admin')" hidden>⚙️ Admin</button>
       <span style="margin-left:10px"><span id="cartCount">0</span> 🛒 <button onclick="openCart()">Cart</button></span>
     </div>
   </div>
@@ -51,18 +59,7 @@
 
 <!-- ADMIN VIEW -->
 <div id="adminView" class="view">
-  <div id="adminAuth" class="container card" hidden>
-    <h2>Admin sign in</h2>
-    <p id="adminAuthMessage" role="status" aria-live="polite">Sign in with an authorized admin account.</p>
-    <form id="adminLoginForm">
-      <input id="adminEmail" type="email" autocomplete="username" placeholder="Admin email" required>
-      <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password" required>
-      <button type="submit">Sign in</button>
-    </form>
-    <button id="adminSignOut" type="button" onclick="signOutAdmin()" hidden>Sign out</button>
-  </div>
   <div id="adminContent" hidden>
-  <div class="container" style="margin-top:20px;text-align:right"><button type="button" onclick="signOutAdmin()">Sign out</button></div>
   <div class="container admin-grid">
     <div>
       <div class="card">
@@ -115,6 +112,97 @@
   </div>
 </div>
 
+<div id="aboutView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Fesdicta's Vault</p>
+      <h1>About Us</h1>
+      <p>Fesdicta's Vault is an online store for fashion and lifestyle finds, including clothing, shoes, bags, skincare and cosmetics. We make it easy to browse our collection and order from wherever you are.</p>
+      <p>We aim to make shopping clear and convenient, with product details, secure account sign-in before ordering, and a choice of payment options at checkout. If you need help choosing an item or with an order, <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">contact us on WhatsApp</a>.</p>
+    </article>
+  </main>
+</div>
+
+<div id="shippingView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Orders and delivery</p>
+      <h1>Shipping &amp; Delivery Policy</h1>
+      <h2>Delivery arrangements</h2>
+      <p>Enter a complete delivery address and a reachable phone number at checkout. We will confirm delivery availability, any delivery fee, and the expected delivery timeframe with you before dispatch. These details can vary by location and order.</p>
+      <h2>Order updates</h2>
+      <p>After placing an order, save the tracking reference shown in your confirmation. Use the Track Order link on this site to check its status. We may contact you using the phone number supplied to confirm delivery details.</p>
+      <h2>Delivery issues</h2>
+      <p>If your delivery is delayed, your address or contact details need to change, or an item arrives damaged, contact us promptly on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a> with your order details.</p>
+    </article>
+  </main>
+</div>
+
+<div id="returnsView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Help with an order</p>
+      <h1>Refund &amp; Returns Policy</h1>
+      <p>Please check your items when they arrive. If an item is incorrect, damaged, or you would like to request a return, contact us as soon as possible on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a> and include your order reference and a description of the issue.</p>
+      <h2>Return requests</h2>
+      <p>Items being considered for return should be unused, unwashed, and in their original condition with labels and packaging where applicable. Contact us before sending anything back so we can confirm eligibility and return arrangements. Some product types may not be eligible for return for hygiene or other reasons; we will explain this when you contact us.</p>
+      <h2>Refunds</h2>
+      <p>Once an approved return is received and checked, we will let you know whether a refund or another resolution is available. Any refund method and processing timeframe will be confirmed with you. Delivery fees, if any, will be discussed as part of the resolution.</p>
+    </article>
+  </main>
+</div>
+
+<div id="faqView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Good to know</p>
+      <h1>Frequently Asked Questions</h1>
+      <h2>How do I place an order?</h2>
+      <p>Add products to your cart, open checkout, enter your contact and delivery details, and sign in or create an account with your email before placing the order.</p>
+      <h2>How can I pay?</h2>
+      <p>Checkout offers Pay on Delivery and Pay Now with MoMo or card through Paystack. Available options are shown when you place your order.</p>
+      <h2>How do I track my order?</h2>
+      <p>Keep the private tracking reference displayed after checkout, select Track Order, and enter the reference to see the latest status.</p>
+      <h2>Can I change or cancel an order?</h2>
+      <p>Contact us as soon as possible with your order reference. We will confirm whether a change or cancellation can be made based on the order's status.</p>
+      <h2>How do I ask about a product or return?</h2>
+      <p>Message us on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a> and include the product name or order reference so we can help.</p>
+    </article>
+  </main>
+</div>
+
+<div id="termsView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Please read before ordering</p>
+      <h1>Terms of Service</h1>
+      <p>By using Fesdicta's Vault or placing an order, you agree to use the site lawfully and provide accurate contact and delivery information. You must sign in with your email account before an order can be submitted.</p>
+      <h2>Products and orders</h2>
+      <p>Product availability, descriptions, images, and prices may change. An order is subject to availability and confirmation by the store. We will contact you if we cannot fulfil an order as requested.</p>
+      <h2>Payments and delivery</h2>
+      <p>Payment options, delivery arrangements, fees, and expected timeframes are confirmed during checkout or with you directly. Paystack payments are processed by Paystack and are subject to its terms.</p>
+      <h2>Contact</h2>
+      <p>If you have a question about these terms or an order, contact us on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
+    </article>
+  </main>
+</div>
+
+<div id="privacyView" class="view">
+  <main class="container info-page">
+    <article class="card">
+      <p class="info-eyebrow">Your information</p>
+      <h1>Privacy Policy</h1>
+      <p>When you use the store, we collect information you provide, such as your email account details, name, phone number, delivery address, and order information. Supabase provides account authentication and store data services; Paystack processes payments selected through checkout.</p>
+      <h2>How we use information</h2>
+      <p>We use this information to create and secure your account, process and confirm orders, arrange delivery, provide order tracking, and respond to questions. We do not ask you to send passwords or payment card details by WhatsApp.</p>
+      <h2>Storage and sharing</h2>
+      <p>Account and order information is stored with the services used to operate the store and is shared only as needed to process your payment, fulfil your order, or meet legal requirements. Order tracking uses a private reference; keep it confidential.</p>
+      <h2>Your choices</h2>
+      <p>Contact us on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a> with questions about your information or account. We may need to retain order records for business or legal purposes.</p>
+    </article>
+  </main>
+</div>
+
 <!-- CART MODAL -->
 <div id="cartModal" class="modal">
   <div class="modal-content">
@@ -132,6 +220,24 @@
       <label class="payment-option"><input type="radio" name="payMethod" value="paystack"> <b>💳 Pay Now with MoMo / Card (Paystack)</b></label>
     </div>
     <button onclick="checkout()">Place Order</button>
+  </div>
+</div>
+
+<div id="customerAuthModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close" type="button" onclick="closeCustomerAuth()" aria-label="Close sign in">&times;</button>
+    <h3 id="customerAuthTitle">Sign in to place your order</h3>
+    <p id="customerAuthIntro">Please sign in or create an account with your email before placing an order.</p>
+    <form id="customerAuthForm">
+      <label for="customerEmail">Email address</label>
+      <input id="customerEmail" type="email" autocomplete="email" required>
+      <label id="customerPasswordLabel" for="customerPassword">Password</label>
+      <input id="customerPassword" type="password" autocomplete="current-password" minlength="6" required>
+      <button id="customerAuthSubmit" type="submit">Sign in</button>
+    </form>
+    <button id="customerAuthToggle" class="text-button" type="button" onclick="toggleCustomerAuthMode()">Create an account</button>
+    <button id="customerForgotPassword" class="text-button" type="button" onclick="openPasswordReset()">Forgot your password?</button>
+    <p id="customerAuthMessage" class="auth-message" role="status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -184,7 +290,16 @@
     </a>
   </div>
   <p class="footer-copyright">&copy; Fesdicta's Vault. All rights reserved.</p>
+  <nav class="footer-links" aria-label="Store information">
+    <a href="#about" onclick="showView('about');return false">About Us</a>
+    <a href="#shipping" onclick="showView('shipping');return false">Shipping &amp; Delivery</a>
+    <a href="#returns" onclick="showView('returns');return false">Refunds &amp; Returns</a>
+    <a href="#faq" onclick="showView('faq');return false">FAQ</a>
+    <a href="#terms" onclick="showView('terms');return false">Terms of Service</a>
+    <a href="#privacy" onclick="showView('privacy');return false">Privacy Policy</a>
+  </nav>
   <p class="footer-developer"><a href="https://wa.me/233549330222" target="_blank" rel="noopener noreferrer">Contact developer</a></p>
+   
 </footer>
 
 <script src="script.js"></script>
