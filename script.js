@@ -42,6 +42,7 @@ function showView(viewName){
     loadAdmin();
   }
   if(viewName==='shop') fetchProducts();
+  if(viewName==='reviews') loadReviews();
 }
 
 function isAdminUser(){
@@ -87,6 +88,13 @@ async function signOutCustomer(){
   updateAdminAccess();
   if(document.getElementById('adminView').classList.contains('active')) showView('shop');
 }
+function updateReviewFormAccess(){
+  const signedIn=Boolean(currentUser);
+  document.getElementById('reviewForm').hidden=!signedIn;
+  document.getElementById('reviewSignInPrompt').textContent=signedIn
+    ? 'Reviews are checked by our team before they appear publicly.'
+    : 'Please sign in or create an account to share a review. Reviews are checked by our team before they appear here.';
+}
 
 // ========== SHOP LOGIC ==========
 async function fetchProducts(){
@@ -130,6 +138,69 @@ function escapeHtml(value){
     '"':'&quot;',
     "'":'&#39;'
   })[char]);
+}
+async function loadReviews(){
+  const list=document.getElementById('reviewsList');
+  if(!list) return;
+  if(!isSupabaseConfigured()){
+    list.textContent='Customer reviews are unavailable because the store is not connected.';
+    return;
+  }
+  list.textContent='Loading customer reviews...';
+  const {data,error}=await client.from('customer_reviews')
+    .select('id,display_name,rating,review,created_at')
+    .eq('status','approved')
+    .order('created_at',{ascending:false});
+  if(error){
+    list.textContent=`Could not load customer reviews: ${error.message}. Run the Supabase setup script to enable reviews.`;
+    return;
+  }
+  if(!data.length){
+    list.innerHTML='<p>No customer reviews yet. Be the first to share your experience.</p>';
+    return;
+  }
+  list.innerHTML=data.map(review=>`
+    <article class="review-card">
+      <div class="review-card-heading">
+        <strong>${escapeHtml(review.display_name)}</strong>
+        <span class="review-stars" aria-label="${review.rating} out of 5 stars">${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}</span>
+      </div>
+      <p>${escapeHtml(review.review)}</p>
+      <small>${escapeHtml(new Date(review.created_at).toLocaleDateString())}</small>
+    </article>
+  `).join('');
+}
+async function submitCustomerReview(event){
+  event.preventDefault();
+  const message=document.getElementById('reviewMessage');
+  if(!currentUser){
+    message.textContent='Sign in before submitting a review.';
+    return;
+  }
+  if(!isSupabaseConfigured()){
+    message.textContent='Reviews are unavailable because the store is not connected.';
+    return;
+  }
+  const displayName=document.getElementById('reviewName').value.trim();
+  const rating=Number(document.getElementById('reviewRating').value);
+  const review=document.getElementById('reviewText').value.trim();
+  if(displayName.length<1||displayName.length>80||!Number.isInteger(rating)||rating<1||rating>5||review.length<10||review.length>1000){
+    message.textContent='Enter a display name, choose a rating, and write a review between 10 and 1000 characters.';
+    return;
+  }
+  const {error}=await client.from('customer_reviews').insert({
+    user_id:currentUser.id,
+    display_name:displayName,
+    rating,
+    review,
+    status:'pending'
+  });
+  if(error){
+    message.textContent=`Could not submit your review: ${error.message}`;
+    return;
+  }
+  document.getElementById('reviewForm').reset();
+  message.textContent='Thank you! Your review was submitted and will appear after it has been approved.';
 }
 function productDetails(description){
   if(typeof description!=='string'||!description.trim()) return [];
@@ -419,6 +490,45 @@ async function loadAdmin(){
   const paidTotal=allOrders.filter(o=> (o.payment_status||'').toLowerCase().includes('paid')).reduce((s,o)=>s+Number(o.total),0);
   document.getElementById('totalPaid').innerText='GHS '+paidTotal.toLocaleString();
   renderAdminProducts(); renderAdminOrders(allOrders);
+  await loadReviewModeration();
+}
+async function loadReviewModeration(){
+  const el=document.getElementById('adminReviews');
+  if(!el||!isAdminUser()) return;
+  const {data,error}=await client.from('customer_reviews')
+    .select('id,display_name,rating,review,status,created_at')
+    .order('created_at',{ascending:false});
+  if(error){
+    el.textContent=`Could not load reviews: ${error.message}`;
+    return;
+  }
+  if(!data.length){
+    el.textContent='No reviews have been submitted yet.';
+    return;
+  }
+  el.innerHTML=data.map(review=>`
+    <article class="review-card">
+      <div class="review-card-heading">
+        <strong>${escapeHtml(review.display_name)}</strong>
+        <span class="review-stars" aria-label="${review.rating} out of 5 stars">${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}</span>
+      </div>
+      <p>${escapeHtml(review.review)}</p>
+      <small>${escapeHtml(new Date(review.created_at).toLocaleDateString())} · ${escapeHtml(review.status)}</small>
+      <div class="review-actions">
+        ${review.status!=='approved'?`<button type="button" onclick="moderateReview('${review.id}','approved')">Approve</button>`:''}
+        ${review.status==='approved'?`<button type="button" onclick="moderateReview('${review.id}','hidden')">Hide</button>`:''}
+      </div>
+    </article>
+  `).join('');
+}
+async function moderateReview(id,status){
+  if(!isAdminUser()||!['approved','hidden'].includes(status)) return;
+  const {error}=await client.from('customer_reviews').update({status}).eq('id',id);
+  if(error){
+    alert(`Could not update review: ${error.message}`);
+    return;
+  }
+  await Promise.all([loadReviewModeration(),loadReviews()]);
 }
 function renderAdminProducts(){
   document.getElementById('adminProducts').innerHTML=allProducts.length?allProducts.map(p=>`
@@ -496,10 +606,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     },4500);
   }
   document.getElementById('customerAuthForm').addEventListener('submit',authenticateCustomer);
+  document.getElementById('reviewForm').addEventListener('submit',submitCustomerReview);
   client.auth.onAuthStateChange((event,session)=>{
     currentUser=session?.user||null;
     currentUserRole=null;
     updateAdminAccess();
+    updateReviewFormAccess();
     if(event==='PASSWORD_RECOVERY'&&currentUser){
       customerAuthMode='update-password';
       updateCustomerAuthPrompt();
@@ -532,8 +644,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     currentUser=data.session?.user||null;
     updateAdminAccess();
+    updateReviewFormAccess();
     if(currentUser) loadCurrentUserRole(currentUser);
   });
+  updateReviewFormAccess();
   const addForm=document.getElementById('addForm');
   if(addForm){
     const detailRows=document.getElementById('productDetailRows');

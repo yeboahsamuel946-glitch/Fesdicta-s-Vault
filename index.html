@@ -107,6 +107,11 @@
         </div>
         <div id="ordersList">Loading orders...</div>
       </div>
+      <div class="card">
+        <h2>Customer Reviews</h2>
+        <p>Approve reviews before they are shown publicly.</p>
+        <div id="adminReviews">Loading reviews...</div>
+      </div>
     </div>
     </div>
   </div>
@@ -119,6 +124,38 @@
       <h1>About Us</h1>
       <p>Fesdicta's Vault is an online store for fashion and lifestyle finds, including clothing, shoes, bags, skincare and cosmetics. We make it easy to browse our collection and order from wherever you are.</p>
       <p>We aim to make shopping clear and convenient, with product details, secure account sign-in before ordering, and a choice of payment options at checkout. If you need help choosing an item or with an order, <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">contact us on WhatsApp</a>.</p>
+    </article>
+  </main>
+</div>
+
+<div id="reviewsView" class="view">
+  <main class="container info-page reviews-page">
+    <article class="card">
+      <p class="info-eyebrow">From our customers</p>
+      <h1>Customer Reviews</h1>
+      <p>Read what customers think about shopping with Fesdicta's Vault.</p>
+      <div id="reviewsList" class="reviews-list" aria-live="polite">Loading customer reviews...</div>
+    </article>
+    <article class="card review-form-card">
+      <h2>Share your experience</h2>
+      <p id="reviewSignInPrompt">Sign in to share a review. Reviews are checked by our team before they appear here.</p>
+      <form id="reviewForm">
+        <label for="reviewName">Name to display</label>
+        <input id="reviewName" name="reviewName" maxlength="80" autocomplete="name" required>
+        <label for="reviewRating">Your rating</label>
+        <select id="reviewRating" name="reviewRating" required>
+          <option value="">Choose a rating</option>
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Very good</option>
+          <option value="3">3 - Good</option>
+          <option value="2">2 - Fair</option>
+          <option value="1">1 - Poor</option>
+        </select>
+        <label for="reviewText">Your review</label>
+        <textarea id="reviewText" name="reviewText" minlength="10" maxlength="1000" rows="5" required placeholder="Tell us about your experience (10–1000 characters)"></textarea>
+        <button id="reviewSubmit" type="submit">Submit review</button>
+      </form>
+      <p id="reviewMessage" class="auth-message" role="status" aria-live="polite"></p>
     </article>
   </main>
 </div>
@@ -292,6 +329,7 @@
   <p class="footer-copyright">&copy; Fesdicta's Vault. All rights reserved.</p>
   <nav class="footer-links" aria-label="Store information">
     <a href="#about" onclick="showView('about');return false">About Us</a>
+    <a href="#reviews" onclick="showView('reviews');return false">Customer Reviews</a>
     <a href="#shipping" onclick="showView('shipping');return false">Shipping &amp; Delivery</a>
     <a href="#returns" onclick="showView('returns');return false">Refunds &amp; Returns</a>
     <a href="#faq" onclick="showView('faq');return false">FAQ</a>
