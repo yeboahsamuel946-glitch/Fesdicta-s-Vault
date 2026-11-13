@@ -1,7 +1,6 @@
 ﻿// === CONFIG - CHANGE THESE ===
 const SUPABASE_URL = "https://brnbgssdiwgzcbxhgnai.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJybmJnc3NkaXdnemNieGhnbmFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzODEyODAsImV4cCI6MjEwNjk1NzI4MH0.GTdVtUUXeflCO4mgSiPGkK7Gh5jXsG_fKGTDK6QagqI";
-const PAYSTACK_PUBLIC_KEY = "pk_test_3593e90efaaf79ab84e683acab2ec0646803e035";
 const ADMIN_WHATSAPP = "+233551971169"; // Owner number e.g 233244123456
 // === END CONFIG ===
 
@@ -74,6 +73,7 @@ function updateAdminAccess(){
   document.getElementById('adminNavButton').hidden=!authorized;
   document.getElementById('customerSignInButton').hidden=Boolean(currentUser);
   document.getElementById('customerSignUpButton').hidden=Boolean(currentUser);
+  document.getElementById('marketingPreferencesButton').hidden=!currentUser;
   document.getElementById('customerSignOutButton').hidden=!currentUser;
 }
 async function signOutCustomer(){
@@ -246,8 +246,75 @@ function addToCart(id){
   alert('Added to cart!');
 }
 function updateCartCount(){ const el=document.getElementById('cartCount'); if(el) el.innerText=cart.reduce((s,c)=>s+c.qty,0); }
-function openCart(){ renderCart(); document.getElementById('cartModal').style.display='flex'; }
+function openCart(){
+  renderCart();
+  document.getElementById('newArrivalsConsent').checked=false;
+  document.getElementById('cartModal').style.display='flex';
+}
 function closeCart(){ document.getElementById('cartModal').style.display='none'; }
+function normalizeMarketingPhone(value){
+  const phone=value.trim().replace(/[\s()-]/g,'');
+  if(/^0\d{9}$/.test(phone)) return `+233${phone.slice(1)}`;
+  if(/^233\d{9}$/.test(phone)) return `+${phone}`;
+  if(/^\+233\d{9}$/.test(phone)) return phone;
+  if(/^\+[1-9]\d{7,14}$/.test(phone)) return phone;
+  return null;
+}
+function openMarketingPreferences(){
+  if(!currentUser){openCustomerAuth();return;}
+  const status=document.getElementById('marketingPreferencesStatus');
+  status.textContent='Loading your preferences...';
+  document.getElementById('marketingPreferencesModal').style.display='flex';
+  client.from('marketing_subscriptions').select('phone_e164,is_subscribed')
+    .eq('user_id',currentUser.id).maybeSingle()
+    .then(({data,error})=>{
+      if(error){
+        status.textContent=`Could not load preferences: ${error.message}`;
+        return;
+      }
+      document.getElementById('marketingPhone').value=data?.phone_e164||'';
+      document.getElementById('marketingOptIn').checked=Boolean(data?.is_subscribed);
+      status.textContent=data?.is_subscribed
+        ? 'You are subscribed to new-arrival announcements.'
+        : 'You are not subscribed to new-arrival announcements.';
+    });
+}
+function closeMarketingPreferences(){
+  document.getElementById('marketingPreferencesModal').style.display='none';
+}
+async function saveMarketingPreference(phone,isSubscribed,source){
+  const phoneE164=normalizeMarketingPhone(phone);
+  if(!phoneE164) throw new Error('Enter a valid phone number, including its country code if it is not a Ghana number.');
+  const {error}=await client.from('marketing_subscriptions').upsert({
+    user_id:currentUser.id,
+    phone_e164:phoneE164,
+    is_subscribed:isSubscribed,
+    consent_source:source
+  },{onConflict:'user_id'});
+  if(error) throw error;
+}
+async function updateMarketingPreferences(event){
+  event.preventDefault();
+  if(!currentUser){openCustomerAuth();return;}
+  const status=document.getElementById('marketingPreferencesStatus');
+  const button=document.querySelector('#marketingPreferencesForm button[type="submit"]');
+  button.disabled=true;
+  status.textContent='Saving your preferences...';
+  try{
+    await saveMarketingPreference(
+      document.getElementById('marketingPhone').value,
+      document.getElementById('marketingOptIn').checked,
+      'account'
+    );
+    status.textContent=document.getElementById('marketingOptIn').checked
+      ? 'You are subscribed to new-arrival announcements.'
+      : 'You have been unsubscribed from new-arrival announcements.';
+  }catch(error){
+    status.textContent=`Could not save your preferences: ${error.message}`;
+  }finally{
+    button.disabled=false;
+  }
+}
 function openCustomerAuth(mode='signin'){
   customerAuthMode=mode==='signup'?'signup':'signin';
   updateCustomerAuthPrompt();
@@ -376,11 +443,9 @@ async function checkout(){
     alert('Your order has an invalid amount. Remove invalid items or contact the store.');
     return;
   }
-  const method=document.querySelector('input[name="payMethod"]:checked').value;
-  if(method==='delivery'){ await saveOrder(name,phone,addr,total,'Unpaid - Pay on Delivery','New'); } 
-  else { payWithPaystack(name,phone,addr,total); }
+  await saveOrder(name,phone,addr,total,'Unpaid - Pay on Delivery','New',document.getElementById('newArrivalsConsent').checked);
 }
-async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus){
+async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus,marketingOptIn=false){
   if(!Number.isFinite(Number(total))||Number(total)<=0){alert('Order total must be greater than zero.');return;}
   const trackingToken=crypto.randomUUID();
   const orderItems=cart.map(item=>({...item}));
@@ -389,6 +454,13 @@ async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus){
     status:orderStatus,payment_status:paymentStatus,tracking_token:trackingToken
   });
   if(error){alert(error.message);return;}
+  if(marketingOptIn){
+    try{
+      await saveMarketingPreference(phone,true,'checkout');
+    }catch(preferenceError){
+      alert(`Your order was placed, but your WhatsApp announcement preference could not be saved: ${preferenceError.message}. You can update it from your account.`);
+    }
+  }
   let itemsText=orderItems.map(c=>`- ${c.name} x${c.qty} = GHS ${c.price*c.qty}`).join('%0A');
   let waMsg=`${paymentStatus.includes('Paid')?'âœ… PAID ORDER':'ðŸ›’ NEW ORDER (Pay on Delivery)'}%0A%0AName: ${name}%0APhone: ${phone}%0AAddress: ${addr}%0A%0AItems:%0A${itemsText}%0A%0ATotal: GHS ${total}%0APayment: ${paymentStatus}`;
   window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${waMsg}`,'_blank');
@@ -448,18 +520,6 @@ async function trackOrder(event){
   result.innerHTML=`<strong>Status: ${escapeHtml(order.status||'Processing')}</strong><span>Payment: ${escapeHtml(order.payment_status||'Pending')}</span><span>Placed: ${escapeHtml(placedAt)}</span>`;
   result.className='tracking-result success';
 }
-function payWithPaystack(name,phone,addr,total){
-  if(!Number.isFinite(Number(total))||Number(total)<=0){alert('Payment amount must be greater than zero.');return;}
-  if(!PAYSTACK_PUBLIC_KEY.includes('pk_')){alert('Add Paystack Public Key in app.js');return;}
-  let handler = PaystackPop.setup({
-    key: PAYSTACK_PUBLIC_KEY, email: `${phone}@customer.com`, amount: total*100, currency:'GHS',
-    ref: 'ELITE_'+Math.floor((Math.random()*1000000000)+1),
-    callback: function(response){ saveOrder(name,phone,addr,total,`Paid via Paystack - Ref: ${response.reference}`,'Paid'); },
-    onClose: function(){ alert('Payment closed. You can choose Pay on Delivery.'); }
-  });
-  handler.openIframe();
-}
-
 // ========== ADMIN LOGIC ==========
 async function loadAdmin(){
   if(!isAdminUser()){
@@ -590,11 +650,60 @@ async function deleteOrder(id){
     loadAdmin();
   }
 }
+async function sendNewArrivals(event){
+  event.preventDefault();
+  if(!isAdminUser()||!currentUser){
+    document.getElementById('newArrivalsStatus').textContent='Admin sign-in is required to send announcements.';
+    return;
+  }
+  const announcement=document.getElementById('newArrivalsMessage').value.trim();
+  const shopUrl=document.getElementById('newArrivalsUrl').value.trim();
+  const status=document.getElementById('newArrivalsStatus');
+  const button=document.getElementById('sendNewArrivalsButton');
+  if(!announcement||announcement.length>500){
+    status.textContent='Enter announcement details between 1 and 500 characters.';
+    return;
+  }
+  if(!/^https:\/\//i.test(shopUrl)){
+    status.textContent='Use a secure https:// shop link.';
+    return;
+  }
+  if(!confirm('Send this new-arrival announcement to every customer who opted in?')) return;
+  button.disabled=true;
+  let cursor=null;
+  let sent=0;
+  let failed=0;
+  let recipientTotal=null;
+  try{
+    do{
+      status.textContent=`Sending announcement... ${sent} sent, ${failed} failed.`;
+      const {data,error}=await client.functions.invoke('send-new-arrivals',{
+        body:{announcement,shopUrl,cursor}
+      });
+      if(error) throw error;
+      if(data?.error) throw new Error(data.error);
+      sent+=Number(data.sent||0);
+      failed+=Number(data.failed||0);
+      recipientTotal=Number(data.total||0);
+      cursor=data.nextCursor||null;
+    }while(cursor);
+    status.textContent=recipientTotal===0
+      ? 'No customers have opted in to new-arrival announcements.'
+      : `Announcement complete: ${sent} sent, ${failed} failed, out of ${recipientTotal} opted-in customers.`;
+  }catch(error){
+    status.textContent=`Announcement stopped after ${sent} sent and ${failed} failed: ${error.message}`;
+  }finally{
+    button.disabled=false;
+  }
+}
 
 // Init
 document.addEventListener('DOMContentLoaded', ()=>{
   fetchProducts();
   document.getElementById('trackingForm').addEventListener('submit',trackOrder);
+  document.getElementById('marketingPreferencesForm').addEventListener('submit',updateMarketingPreferences);
+  document.getElementById('newArrivalsForm').addEventListener('submit',sendNewArrivals);
+  document.getElementById('newArrivalsUrl').value=`${window.location.origin}${window.location.pathname}`;
   const heroSlides=Array.from(document.querySelectorAll('.hero-slide'));
   if(heroSlides.length>1&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     let activeSlide=0;

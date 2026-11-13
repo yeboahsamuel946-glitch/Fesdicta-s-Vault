@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fesdicta's Vault | Fashion Store in Sunyani, Ghana</title>
-  <meta name="description" content="Shop quality dresses, shirts, jeans, t-shirts, shoes and bags at Fesdicta's Vault. Pay with MoMo or Pay on Delivery. Fast delivery across Ghana.">
+  <meta name="description" content="Shop quality dresses, shirts, jeans, t-shirts, shoes and bags at Fesdicta's Vault. Pay on Delivery. Fast delivery across Ghana.">
   <link rel="icon" href="logo.png" type="image/png">
   <meta property="og:title" content="Fesdicta's Vault">
-  <meta property="og:description" content="Ghana fashion store - Dresses, shirts, jeans, shoes, bags. MoMo & Pay on Delivery.">
+  <meta property="og:description" content="Ghana fashion store - Dresses, shirts, jeans, shoes, bags. Pay on Delivery.">
   <meta property="og:image" content="logo.png">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 <body>
 
@@ -24,6 +23,7 @@
       <button onclick="showView('shop')">🛍️ Shop</button>
       <button id="customerSignInButton" onclick="openCustomerAuth()">Sign in</button>
       <button id="customerSignUpButton" onclick="openCustomerAuth('signup')">Create account</button>
+      <button id="marketingPreferencesButton" onclick="openMarketingPreferences()" hidden>New arrivals updates</button>
       <button id="customerSignOutButton" onclick="signOutCustomer()" hidden>Sign out</button>
       <button id="adminNavButton" onclick="showView('admin')" hidden>⚙️ Admin</button>
       <span style="margin-left:10px"><span id="cartCount">0</span> 🛒 <button onclick="openCart()">Cart</button></span>
@@ -44,7 +44,7 @@
         <img class="hero-slide" src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
         <img class="hero-slide" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&amp;fit=crop&amp;w=1600&amp;q=85" alt="">
       </div>
-      <div class="hero-content"><h1>Fesdicta's Vault-Premium Fashion Store in Sunyani</h1><p>Pay with MoMo or Pay on Delivery - Fast Delivery</p></div>
+      <div class="hero-content"><h1>Fesdicta's Vault-Premium Fashion Store in Sunyani</h1><p>Pay on Delivery - Fast Delivery</p></div>
     </div>
     <div class="filters"><input id="search" placeholder="Search shirt, dress..."><select id="catFilter"><option value="">All Categories</option><option>Shirts</option><option>Dresses</option><option>Jeans</option> 
       <option>T-Shirts</option><option>Shoes</option>
@@ -106,6 +106,18 @@
           <button onclick="filterOrders('Delivered',this)">Delivered</button>
         </div>
         <div id="ordersList">Loading orders...</div>
+      </div>
+      <div class="card">
+        <h2>New Arrivals WhatsApp Announcement</h2>
+        <p>Send an approved WhatsApp marketing template only to customers who opted in. Existing order phone numbers are not automatically subscribed. Recipients can reply STOP to unsubscribe.</p>
+        <form id="newArrivalsForm">
+          <label for="newArrivalsMessage">Announcement details</label>
+          <textarea id="newArrivalsMessage" maxlength="500" required placeholder="e.g. New dresses, bags, and summer styles just arrived."></textarea>
+          <label for="newArrivalsUrl">Shop link</label>
+          <input id="newArrivalsUrl" type="url" required>
+          <button id="sendNewArrivalsButton" type="submit">Send to opted-in customers</button>
+        </form>
+        <p id="newArrivalsStatus" class="auth-message" role="status" aria-live="polite"></p>
       </div>
       <div class="card">
         <h2>Customer Reviews</h2>
@@ -197,7 +209,7 @@
       <h2>How do I place an order?</h2>
       <p>Add products to your cart, open checkout, enter your contact and delivery details, and sign in or create an account with your email before placing the order.</p>
       <h2>How can I pay?</h2>
-      <p>Checkout offers Pay on Delivery and Pay Now with MoMo or card through Paystack. Available options are shown when you place your order.</p>
+      <p>Payment is made on delivery. The store will contact you to confirm your order and delivery arrangements.</p>
       <h2>How do I track my order?</h2>
       <p>Keep the private tracking reference displayed after checkout, select Track Order, and enter the reference to see the latest status.</p>
       <h2>Can I change or cancel an order?</h2>
@@ -217,7 +229,7 @@
       <h2>Products and orders</h2>
       <p>Product availability, descriptions, images, and prices may change. An order is subject to availability and confirmation by the store. We will contact you if we cannot fulfil an order as requested.</p>
       <h2>Payments and delivery</h2>
-      <p>Payment options, delivery arrangements, fees, and expected timeframes are confirmed during checkout or with you directly. Paystack payments are processed by Paystack and are subject to its terms.</p>
+      <p>Payment is made on delivery. Delivery arrangements, fees, and expected timeframes are confirmed with you directly.</p>
       <h2>Contact</h2>
       <p>If you have a question about these terms or an order, contact us on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
     </article>
@@ -229,11 +241,11 @@
     <article class="card">
       <p class="info-eyebrow">Your information</p>
       <h1>Privacy Policy</h1>
-      <p>When you use the store, we collect information you provide, such as your email account details, name, phone number, delivery address, and order information. Supabase provides account authentication and store data services; Paystack processes payments selected through checkout.</p>
+      <p>When you use the store, we collect information you provide, such as your email account details, name, phone number, delivery address, and order information. Supabase provides account authentication and store data services.</p>
       <h2>How we use information</h2>
-      <p>We use this information to create and secure your account, process and confirm orders, arrange delivery, provide order tracking, and respond to questions. We do not ask you to send passwords or payment card details by WhatsApp.</p>
+      <p>We use this information to create and secure your account, process and confirm orders, arrange delivery, provide order tracking, and respond to questions. If you opt in, we also use your phone number to send occasional new-arrival announcements on WhatsApp. You can opt out from your account or by replying STOP. We do not ask you to send passwords or payment card details by WhatsApp.</p>
       <h2>Storage and sharing</h2>
-      <p>Account and order information is stored with the services used to operate the store and is shared only as needed to process your payment, fulfil your order, or meet legal requirements. Order tracking uses a private reference; keep it confidential.</p>
+      <p>Account and order information is stored with the services used to operate the store and is shared only as needed to fulfil your order or meet legal requirements. Order tracking uses a private reference; keep it confidential.</p>
       <h2>Your choices</h2>
       <p>Contact us on <a href="https://wa.me/233551971169" target="_blank" rel="noopener noreferrer">WhatsApp</a> with questions about your information or account. We may need to retain order records for business or legal purposes.</p>
     </article>
@@ -251,10 +263,10 @@
     <input id="custName" placeholder="Your Full Name" required>
     <input id="custPhone" placeholder="Phone 024..." required>
     <input id="custAddr" placeholder="Address e.g. East Legon">
+    <label class="marketing-consent"><input id="newArrivalsConsent" type="checkbox"> <span>I agree to receive new-arrival announcements on WhatsApp at this number. I can opt out anytime from my account or by replying STOP.</span></label>
     <h4>Choose Payment:</h4>
     <div class="payment-options">
       <label class="payment-option"><input type="radio" name="payMethod" value="delivery" checked> <b>🚚 Pay on Delivery</b></label>
-      <label class="payment-option"><input type="radio" name="payMethod" value="paystack"> <b>💳 Pay Now with MoMo / Card (Paystack)</b></label>
     </div>
     <button onclick="checkout()">Place Order</button>
   </div>
@@ -275,6 +287,21 @@
     <button id="customerAuthToggle" class="text-button" type="button" onclick="toggleCustomerAuthMode()">Create an account</button>
     <button id="customerForgotPassword" class="text-button" type="button" onclick="openPasswordReset()">Forgot your password?</button>
     <p id="customerAuthMessage" class="auth-message" role="status" aria-live="polite"></p>
+  </div>
+</div>
+
+<div id="marketingPreferencesModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close" type="button" onclick="closeMarketingPreferences()" aria-label="Close marketing preferences">&times;</button>
+    <h3>New arrivals on WhatsApp</h3>
+    <p>Choose whether you want occasional messages about new arrivals. You can also reply STOP to any announcement to unsubscribe.</p>
+    <form id="marketingPreferencesForm">
+      <label for="marketingPhone">WhatsApp phone number</label>
+      <input id="marketingPhone" type="tel" autocomplete="tel" placeholder="024 123 4567" required>
+      <label class="marketing-consent"><input id="marketingOptIn" type="checkbox"> <span>Send me new-arrival announcements on WhatsApp.</span></label>
+      <button type="submit">Save preferences</button>
+    </form>
+    <p id="marketingPreferencesStatus" class="auth-message" role="status" aria-live="polite"></p>
   </div>
 </div>
 
