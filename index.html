@@ -23,7 +23,7 @@
       <button onclick="showView('shop')">🛍️ Shop</button>
       <button id="customerSignInButton" onclick="openCustomerAuth()">Sign in</button>
       <button id="customerSignUpButton" onclick="openCustomerAuth('signup')">Create account</button>
-      <button id="marketingPreferencesButton" onclick="openMarketingPreferences()" hidden>New arrivals updates</button>
+      <button id="emailPreferencesButton" onclick="openEmailPreferences()" hidden>Email updates</button>
       <button id="customerSignOutButton" onclick="signOutCustomer()" hidden>Sign out</button>
       <button id="adminNavButton" onclick="showView('admin')" hidden>⚙️ Admin</button>
       <span style="margin-left:10px"><span id="cartCount">0</span> 🛒 <button onclick="openCart()">Cart</button></span>
@@ -108,16 +108,18 @@
         <div id="ordersList">Loading orders...</div>
       </div>
       <div class="card">
-        <h2>New Arrivals WhatsApp Announcement</h2>
-        <p>Send an approved WhatsApp marketing template only to customers who opted in. Existing order phone numbers are not automatically subscribed. Recipients can reply STOP to unsubscribe.</p>
-        <form id="newArrivalsForm">
-          <label for="newArrivalsMessage">Announcement details</label>
-          <textarea id="newArrivalsMessage" maxlength="500" required placeholder="e.g. New dresses, bags, and summer styles just arrived."></textarea>
-          <label for="newArrivalsUrl">Shop link</label>
-          <input id="newArrivalsUrl" type="url" required>
-          <button id="sendNewArrivalsButton" type="submit">Send to opted-in customers</button>
+        <h2>New Arrivals Email Announcement</h2>
+        <p>Send an email only to customers who chose to receive updates. Customers can unsubscribe using the link in every email.</p>
+        <form id="emailCampaignForm">
+          <label for="emailCampaignSubject">Email subject</label>
+          <input id="emailCampaignSubject" maxlength="150" required placeholder="e.g. New arrivals are here">
+          <label for="emailCampaignMessage">Announcement details</label>
+          <textarea id="emailCampaignMessage" maxlength="5000" required placeholder="Tell customers what has arrived."></textarea>
+          <label for="emailCampaignUrl">Shop link</label>
+          <input id="emailCampaignUrl" type="url" required>
+          <button id="sendEmailCampaignButton" type="submit">Send to subscribed customers</button>
         </form>
-        <p id="newArrivalsStatus" class="auth-message" role="status" aria-live="polite"></p>
+        <p id="emailCampaignStatus" class="auth-message" role="status" aria-live="polite"></p>
       </div>
       <div class="card">
         <h2>Customer Reviews</h2>
@@ -243,7 +245,7 @@
       <h1>Privacy Policy</h1>
       <p>When you use the store, we collect information you provide, such as your email account details, name, phone number, delivery address, and order information. Supabase provides account authentication and store data services.</p>
       <h2>How we use information</h2>
-      <p>We use this information to create and secure your account, process and confirm orders, arrange delivery, provide order tracking, and respond to questions. If you opt in, we also use your phone number to send occasional new-arrival announcements on WhatsApp. You can opt out from your account or by replying STOP. We do not ask you to send passwords or payment card details by WhatsApp.</p>
+      <p>We use this information to create and secure your account, process and confirm orders, arrange delivery, provide order tracking, and respond to questions. If you choose to subscribe, we also use your account email to send occasional new-arrival announcements. You can unsubscribe from any announcement or update your preference from your account. We do not ask you to send passwords or payment card details by WhatsApp.</p>
       <h2>Storage and sharing</h2>
       <p>Account and order information is stored with the services used to operate the store and is shared only as needed to fulfil your order or meet legal requirements. Order tracking uses a private reference; keep it confidential.</p>
       <h2>Your choices</h2>
@@ -263,7 +265,7 @@
     <input id="custName" placeholder="Your Full Name" required>
     <input id="custPhone" placeholder="Phone 024..." required>
     <input id="custAddr" placeholder="Address e.g. East Legon">
-    <label class="marketing-consent"><input id="newArrivalsConsent" type="checkbox"> <span>I agree to receive new-arrival announcements on WhatsApp at this number. I can opt out anytime from my account or by replying STOP.</span></label>
+    <label class="marketing-consent"><input id="emailCheckoutConsent" type="checkbox"> <span>Send new-arrival updates to my account email. I can unsubscribe anytime.</span></label>
     <h4>Choose Payment:</h4>
     <div class="payment-options">
       <label class="payment-option"><input type="radio" name="payMethod" value="delivery" checked> <b>🚚 Pay on Delivery</b></label>
@@ -290,18 +292,17 @@
   </div>
 </div>
 
-<div id="marketingPreferencesModal" class="modal">
+<div id="emailPreferencesModal" class="modal">
   <div class="modal-content">
-    <button class="modal-close" type="button" onclick="closeMarketingPreferences()" aria-label="Close marketing preferences">&times;</button>
-    <h3>New arrivals on WhatsApp</h3>
-    <p>Choose whether you want occasional messages about new arrivals. You can also reply STOP to any announcement to unsubscribe.</p>
-    <form id="marketingPreferencesForm">
-      <label for="marketingPhone">WhatsApp phone number</label>
-      <input id="marketingPhone" type="tel" autocomplete="tel" placeholder="024 123 4567" required>
-      <label class="marketing-consent"><input id="marketingOptIn" type="checkbox"> <span>Send me new-arrival announcements on WhatsApp.</span></label>
+    <button class="modal-close" type="button" onclick="closeEmailPreferences()" aria-label="Close email preferences">&times;</button>
+    <h3>New arrivals by email</h3>
+    <p>Choose whether you want occasional new-arrival announcements. You can unsubscribe at any time.</p>
+    <p><strong>Account email:</strong> <span id="emailPreferencesAddress"></span></p>
+    <form id="emailPreferencesForm">
+      <label class="marketing-consent"><input id="emailMarketingOptIn" type="checkbox"> <span>Send me new-arrival announcements by email.</span></label>
       <button type="submit">Save preferences</button>
     </form>
-    <p id="marketingPreferencesStatus" class="auth-message" role="status" aria-live="polite"></p>
+    <p id="emailPreferencesStatus" class="auth-message" role="status" aria-live="polite"></p>
   </div>
 </div>
 

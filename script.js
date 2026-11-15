@@ -73,7 +73,7 @@ function updateAdminAccess(){
   document.getElementById('adminNavButton').hidden=!authorized;
   document.getElementById('customerSignInButton').hidden=Boolean(currentUser);
   document.getElementById('customerSignUpButton').hidden=Boolean(currentUser);
-  document.getElementById('marketingPreferencesButton').hidden=!currentUser;
+  document.getElementById('emailPreferencesButton').hidden=!currentUser;
   document.getElementById('customerSignOutButton').hidden=!currentUser;
 }
 async function signOutCustomer(){
@@ -248,67 +248,59 @@ function addToCart(id){
 function updateCartCount(){ const el=document.getElementById('cartCount'); if(el) el.innerText=cart.reduce((s,c)=>s+c.qty,0); }
 function openCart(){
   renderCart();
-  document.getElementById('newArrivalsConsent').checked=false;
+  document.getElementById('emailCheckoutConsent').checked=false;
   document.getElementById('cartModal').style.display='flex';
 }
 function closeCart(){ document.getElementById('cartModal').style.display='none'; }
-function normalizeMarketingPhone(value){
-  const phone=value.trim().replace(/[\s()-]/g,'');
-  if(/^0\d{9}$/.test(phone)) return `+233${phone.slice(1)}`;
-  if(/^233\d{9}$/.test(phone)) return `+${phone}`;
-  if(/^\+233\d{9}$/.test(phone)) return phone;
-  if(/^\+[1-9]\d{7,14}$/.test(phone)) return phone;
-  return null;
-}
-function openMarketingPreferences(){
-  if(!currentUser){openCustomerAuth();return;}
-  const status=document.getElementById('marketingPreferencesStatus');
+function openEmailPreferences(){
+  if(!currentUser?.email){openCustomerAuth();return;}
+  const status=document.getElementById('emailPreferencesStatus');
+  document.getElementById('emailPreferencesAddress').textContent=currentUser.email;
+  document.getElementById('emailMarketingOptIn').checked=false;
+  document.getElementById('emailPreferencesModal').style.display='flex';
   status.textContent='Loading your preferences...';
-  document.getElementById('marketingPreferencesModal').style.display='flex';
-  client.from('marketing_subscriptions').select('phone_e164,is_subscribed')
-    .eq('user_id',currentUser.id).maybeSingle()
+  client.from('email_marketing_subscriptions')
+    .select('is_subscribed')
+    .eq('user_id',currentUser.id)
+    .maybeSingle()
     .then(({data,error})=>{
       if(error){
         status.textContent=`Could not load preferences: ${error.message}`;
         return;
       }
-      document.getElementById('marketingPhone').value=data?.phone_e164||'';
-      document.getElementById('marketingOptIn').checked=Boolean(data?.is_subscribed);
+      document.getElementById('emailMarketingOptIn').checked=Boolean(data?.is_subscribed);
       status.textContent=data?.is_subscribed
-        ? 'You are subscribed to new-arrival announcements.'
-        : 'You are not subscribed to new-arrival announcements.';
+        ? 'You are subscribed to new-arrival email updates.'
+        : 'You are not subscribed to new-arrival email updates.';
     });
 }
-function closeMarketingPreferences(){
-  document.getElementById('marketingPreferencesModal').style.display='none';
+function closeEmailPreferences(){
+  document.getElementById('emailPreferencesModal').style.display='none';
 }
-async function saveMarketingPreference(phone,isSubscribed,source){
-  const phoneE164=normalizeMarketingPhone(phone);
-  if(!phoneE164) throw new Error('Enter a valid phone number, including its country code if it is not a Ghana number.');
-  const {error}=await client.from('marketing_subscriptions').upsert({
+async function saveEmailMarketingPreference(isSubscribed,source){
+  if(!currentUser?.id||!currentUser.email) throw new Error('Sign in with an email account to update this preference.');
+  const {error}=await client.from('email_marketing_subscriptions').upsert({
     user_id:currentUser.id,
-    phone_e164:phoneE164,
+    email:currentUser.email.toLowerCase(),
     is_subscribed:isSubscribed,
-    consent_source:source
+    consent_source:source,
+    updated_at:new Date().toISOString()
   },{onConflict:'user_id'});
   if(error) throw error;
 }
-async function updateMarketingPreferences(event){
+async function updateEmailPreferences(event){
   event.preventDefault();
   if(!currentUser){openCustomerAuth();return;}
-  const status=document.getElementById('marketingPreferencesStatus');
-  const button=document.querySelector('#marketingPreferencesForm button[type="submit"]');
+  const status=document.getElementById('emailPreferencesStatus');
+  const button=document.querySelector('#emailPreferencesForm button[type="submit"]');
   button.disabled=true;
   status.textContent='Saving your preferences...';
   try{
-    await saveMarketingPreference(
-      document.getElementById('marketingPhone').value,
-      document.getElementById('marketingOptIn').checked,
-      'account'
-    );
-    status.textContent=document.getElementById('marketingOptIn').checked
-      ? 'You are subscribed to new-arrival announcements.'
-      : 'You have been unsubscribed from new-arrival announcements.';
+    const isSubscribed=document.getElementById('emailMarketingOptIn').checked;
+    await saveEmailMarketingPreference(isSubscribed,'account');
+    status.textContent=isSubscribed
+      ? 'You are subscribed to new-arrival email updates.'
+      : 'You have been unsubscribed from new-arrival email updates.';
   }catch(error){
     status.textContent=`Could not save your preferences: ${error.message}`;
   }finally{
@@ -443,9 +435,9 @@ async function checkout(){
     alert('Your order has an invalid amount. Remove invalid items or contact the store.');
     return;
   }
-  await saveOrder(name,phone,addr,total,'Unpaid - Pay on Delivery','New',document.getElementById('newArrivalsConsent').checked);
+  await saveOrder(name,phone,addr,total,'Unpaid - Pay on Delivery','New',document.getElementById('emailCheckoutConsent').checked);
 }
-async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus,marketingOptIn=false){
+async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus,emailMarketingOptIn=false){
   if(!Number.isFinite(Number(total))||Number(total)<=0){alert('Order total must be greater than zero.');return;}
   const trackingToken=crypto.randomUUID();
   const orderItems=cart.map(item=>({...item}));
@@ -454,11 +446,11 @@ async function saveOrder(name,phone,addr,total,paymentStatus,orderStatus,marketi
     status:orderStatus,payment_status:paymentStatus,tracking_token:trackingToken
   });
   if(error){alert(error.message);return;}
-  if(marketingOptIn){
+  if(emailMarketingOptIn){
     try{
-      await saveMarketingPreference(phone,true,'checkout');
+      await saveEmailMarketingPreference(true,'checkout');
     }catch(preferenceError){
-      alert(`Your order was placed, but your WhatsApp announcement preference could not be saved: ${preferenceError.message}. You can update it from your account.`);
+      alert(`Your order was placed, but your email update preference could not be saved: ${preferenceError.message}. You can try again from your account.`);
     }
   }
   let itemsText=orderItems.map(c=>`- ${c.name} x${c.qty} = GHS ${c.price*c.qty}`).join('%0A');
@@ -650,25 +642,26 @@ async function deleteOrder(id){
     loadAdmin();
   }
 }
-async function sendNewArrivals(event){
+async function sendEmailCampaign(event){
   event.preventDefault();
   if(!isAdminUser()||!currentUser){
-    document.getElementById('newArrivalsStatus').textContent='Admin sign-in is required to send announcements.';
+    document.getElementById('emailCampaignStatus').textContent='Admin sign-in is required to send announcements.';
     return;
   }
-  const announcement=document.getElementById('newArrivalsMessage').value.trim();
-  const shopUrl=document.getElementById('newArrivalsUrl').value.trim();
-  const status=document.getElementById('newArrivalsStatus');
-  const button=document.getElementById('sendNewArrivalsButton');
-  if(!announcement||announcement.length>500){
-    status.textContent='Enter announcement details between 1 and 500 characters.';
+  const subject=document.getElementById('emailCampaignSubject').value.trim();
+  const announcement=document.getElementById('emailCampaignMessage').value.trim();
+  const shopUrl=document.getElementById('emailCampaignUrl').value.trim();
+  const status=document.getElementById('emailCampaignStatus');
+  const button=document.getElementById('sendEmailCampaignButton');
+  if(!subject||subject.length>150||!announcement||announcement.length>5000){
+    status.textContent='Enter a subject (up to 150 characters) and announcement details (up to 5,000 characters).';
     return;
   }
   if(!/^https:\/\//i.test(shopUrl)){
     status.textContent='Use a secure https:// shop link.';
     return;
   }
-  if(!confirm('Send this new-arrival announcement to every customer who opted in?')) return;
+  if(!confirm('Send this email announcement to every customer who subscribed?')) return;
   button.disabled=true;
   let cursor=null;
   let sent=0;
@@ -676,9 +669,9 @@ async function sendNewArrivals(event){
   let recipientTotal=null;
   try{
     do{
-      status.textContent=`Sending announcement... ${sent} sent, ${failed} failed.`;
-      const {data,error}=await client.functions.invoke('send-new-arrivals',{
-        body:{announcement,shopUrl,cursor}
+      status.textContent=`Sending email announcement... ${sent} sent, ${failed} failed.`;
+      const {data,error}=await client.functions.invoke('send-email-announcement',{
+        body:{subject,announcement,shopUrl,cursor}
       });
       if(error) throw error;
       if(data?.error) throw new Error(data.error);
@@ -688,8 +681,8 @@ async function sendNewArrivals(event){
       cursor=data.nextCursor||null;
     }while(cursor);
     status.textContent=recipientTotal===0
-      ? 'No customers have opted in to new-arrival announcements.'
-      : `Announcement complete: ${sent} sent, ${failed} failed, out of ${recipientTotal} opted-in customers.`;
+      ? 'No customers have subscribed to email updates.'
+      : `Announcement complete: ${sent} sent, ${failed} failed, out of ${recipientTotal} subscribed customers.`;
   }catch(error){
     status.textContent=`Announcement stopped after ${sent} sent and ${failed} failed: ${error.message}`;
   }finally{
@@ -701,9 +694,9 @@ async function sendNewArrivals(event){
 document.addEventListener('DOMContentLoaded', ()=>{
   fetchProducts();
   document.getElementById('trackingForm').addEventListener('submit',trackOrder);
-  document.getElementById('marketingPreferencesForm').addEventListener('submit',updateMarketingPreferences);
-  document.getElementById('newArrivalsForm').addEventListener('submit',sendNewArrivals);
-  document.getElementById('newArrivalsUrl').value=`${window.location.origin}${window.location.pathname}`;
+  document.getElementById('emailPreferencesForm').addEventListener('submit',updateEmailPreferences);
+  document.getElementById('emailCampaignForm').addEventListener('submit',sendEmailCampaign);
+  document.getElementById('emailCampaignUrl').value=`${window.location.origin}${window.location.pathname}`;
   const heroSlides=Array.from(document.querySelectorAll('.hero-slide'));
   if(heroSlides.length>1&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     let activeSlide=0;
