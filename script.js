@@ -116,18 +116,18 @@ function renderShop(list){
     const discount=p.old_price?Math.round((1-p.price/p.old_price)*100):0;
     const images=productImages(p);
     const details=productDetails(p.description);
-    return `<div class="property-card">
-      <div class="product-gallery"><img class="gallery-main" src="${images[0]||''}" alt="${p.name}">
-        ${images.length>1?`<div class="gallery-thumbnails">${images.map(image=>`<button type="button" onclick="this.closest('.product-gallery').querySelector('.gallery-main').src=this.querySelector('img').src" aria-label="View another ${p.name} image"><img src="${image}" alt=""></button>`).join('')}</div>`:''}
+    return `<article class="property-card" data-product-id="${escapeHtml(p.id)}" tabindex="0" aria-label="Product: ${escapeHtml(p.name)}. Open details.">
+      <div class="product-gallery"><button class="product-card-image" type="button" data-open-product aria-label="View ${escapeHtml(p.name)} details"><img class="gallery-main" src="${escapeHtml(images[0]||'')}" alt="${escapeHtml(p.name)}"></button>
+        ${images.length>1?`<div class="gallery-thumbnails">${images.map((image,index)=>`<button type="button" data-card-image-index="${index}" aria-label="View picture ${index+1} of ${images.length} for ${escapeHtml(p.name)}"><img src="${escapeHtml(image)}" alt=""></button>`).join('')}</div>`:''}
       </div><div class="info">
-        ${discount?`<span class="badge">-${discount}%</span>`:''} <small>${p.category||''} â€¢ ${p.size||''}</small>
-        <div style="font-weight:700;margin-top:5px">${p.name}</div>
-        <div><span class="price">GHS ${p.price}</span>${p.old_price?`<span class="old">GHS ${p.old_price}</span>`:''}</div>
+        ${discount?`<span class="badge">-${discount}%</span>`:''} <small>${escapeHtml(p.category||'')} • ${escapeHtml(p.size||'')}</small>
+        <button class="product-card-name" type="button" data-open-product>${escapeHtml(p.name)}</button>
+        <div><span class="price">GHS ${escapeHtml(p.price)}</span>${p.old_price?`<span class="old">GHS ${escapeHtml(p.old_price)}</span>`:''}</div>
         <div style="font-size:12px;color:${p.stock<5?'red':'#64748b'}">Stock: ${p.stock}</div>
         ${details.length?`<details class="product-details"><summary>Product details (${details.length})</summary><dl>${details.map(detail=>`<div><dt>${escapeHtml(detail.label)}</dt><dd>${escapeHtml(detail.value)}</dd></div>`).join('')}</dl></details>`:''}
-        <button onclick="addToCart('${p.id}')">Add to Cart</button>
+        <button type="button" data-add-to-cart="${escapeHtml(p.id)}">Add to Cart</button>
       </div>
-    </div>`;
+    </article>`;
   }).join('');
 }
 function escapeHtml(value){
@@ -230,6 +230,58 @@ function productImages(product){
     if(Array.isArray(images)) return images.filter(image=>typeof image==='string'&&image);
   }catch{}
   return [value];
+}
+let activeProductId=null;
+let activeProductImageIndex=0;
+let productModalReturnFocus=null;
+function openProductDetails(id,imageIndex=0){
+  const product=allProducts.find(item=>String(item.id)===String(id));
+  if(!product) return;
+  activeProductId=product.id;
+  activeProductImageIndex=imageIndex;
+  productModalReturnFocus=document.activeElement;
+  renderProductDetails();
+  const modal=document.getElementById('productModal');
+  modal.style.display='flex';
+  modal.setAttribute('aria-hidden','false');
+  modal.querySelector('.product-modal-close').focus();
+}
+function renderProductDetails(){
+  const product=allProducts.find(item=>String(item.id)===String(activeProductId));
+  if(!product) return;
+  const images=productImages(product);
+  const details=productDetails(product.description);
+  activeProductImageIndex=Math.min(Math.max(activeProductImageIndex,0),Math.max(images.length-1,0));
+  const image=images[activeProductImageIndex];
+  const detailsMarkup=details.length
+    ? `<dl class="product-modal-details">${details.map(detail=>`<div><dt>${escapeHtml(detail.label)}</dt><dd>${escapeHtml(detail.value)}</dd></div>`).join('')}</dl>`
+    : '<p class="product-modal-no-details">No additional product details provided.</p>';
+  document.getElementById('productModalContent').innerHTML=`
+    <div class="product-detail-layout">
+      <div class="product-detail-gallery">
+        <div class="product-detail-image-wrap">
+          ${image?`<img class="product-detail-main-image" src="${escapeHtml(image)}" alt="${escapeHtml(product.name)} — picture ${activeProductImageIndex+1} of ${images.length}">`:'<div class="product-detail-no-image">No product picture available</div>'}
+          ${images.length>1?`<button class="product-image-arrow previous" type="button" data-product-image-step="-1" aria-label="Previous picture">‹</button><button class="product-image-arrow next" type="button" data-product-image-step="1" aria-label="Next picture">›</button>`:''}
+        </div>
+        ${images.length>1?`<div class="product-detail-thumbnails" aria-label="Product pictures">${images.map((src,index)=>`<button type="button" class="${index===activeProductImageIndex?'active':''}" data-product-image-index="${index}" aria-label="Show picture ${index+1}" aria-pressed="${index===activeProductImageIndex}"><img src="${escapeHtml(src)}" alt=""></button>`).join('')}</div>`:''}
+      </div>
+      <section class="product-detail-info">
+        <p class="product-detail-category">${escapeHtml(product.category||'')} ${product.size?`• ${escapeHtml(product.size)}`:''}</p>
+        <h2 id="productModalName">${escapeHtml(product.name)}</h2>
+        <p class="product-detail-price">GHS ${escapeHtml(product.price)} ${product.old_price?`<s>GHS ${escapeHtml(product.old_price)}</s>`:''}</p>
+        <p class="product-detail-stock" style="color:${product.stock<5?'#a43124':'#526638'}">${product.stock>0?`${escapeHtml(product.stock)} in stock`:'Out of stock'}</p>
+        <h3>Product details</h3>
+        ${detailsMarkup}
+        <button class="product-detail-add" type="button" data-add-to-cart="${escapeHtml(product.id)}">Add to Cart</button>
+      </section>
+    </div>`;
+}
+function closeProductDetails(){
+  const modal=document.getElementById('productModal');
+  modal.style.display='none';
+  modal.setAttribute('aria-hidden','true');
+  activeProductId=null;
+  if(productModalReturnFocus?.isConnected) productModalReturnFocus.focus();
 }
 function addToCart(id){
   const prod=allProducts.find(p=>p.id===id);
@@ -693,6 +745,77 @@ async function sendEmailCampaign(event){
 // Init
 document.addEventListener('DOMContentLoaded', ()=>{
   fetchProducts();
+  const products=document.getElementById('products');
+  products.addEventListener('click',event=>{
+    const addButton=event.target.closest('[data-add-to-cart]');
+    if(addButton){
+      addToCart(addButton.dataset.addToCart);
+      return;
+    }
+    const card=event.target.closest('.property-card[data-product-id]');
+    if(!card) return;
+    const cardImageButton=event.target.closest('[data-card-image-index]');
+    if(cardImageButton){
+      const index=Number(cardImageButton.dataset.cardImageIndex);
+      card.dataset.selectedImageIndex=String(index);
+      const product=allProducts.find(item=>String(item.id)===card.dataset.productId);
+      const image=product&&productImages(product)[index];
+      if(image) card.querySelector('.gallery-main').src=image;
+      return;
+    }
+    if(event.target.closest('[data-open-product]')){
+      openProductDetails(card.dataset.productId,Number(card.dataset.selectedImageIndex||0));
+      return;
+    }
+    if(event.target.closest('button,a,input,select,textarea,summary,details')) return;
+    const index=Number(card.dataset.selectedImageIndex||0);
+    openProductDetails(card.dataset.productId,index);
+  });
+  products.addEventListener('keydown',event=>{
+    if((event.key==='Enter'||event.key===' ')&&event.target.matches('.property-card[data-product-id]')){
+      event.preventDefault();
+      openProductDetails(event.target.dataset.productId,Number(event.target.dataset.selectedImageIndex||0));
+    }
+  });
+  const productModal=document.getElementById('productModal');
+  productModal.querySelector('.product-modal-close').addEventListener('click',closeProductDetails);
+  productModal.addEventListener('click',event=>{
+    const addButton=event.target.closest('[data-add-to-cart]');
+    if(addButton){
+      addToCart(addButton.dataset.addToCart);
+      return;
+    }
+    if(event.target===productModal){
+      closeProductDetails();
+      return;
+    }
+    const imageButton=event.target.closest('[data-product-image-index]');
+    if(imageButton){
+      activeProductImageIndex=Number(imageButton.dataset.productImageIndex);
+      renderProductDetails();
+      return;
+    }
+    const stepButton=event.target.closest('[data-product-image-step]');
+    if(stepButton){
+      const imageCount=productImages(allProducts.find(item=>String(item.id)===String(activeProductId))||{}).length;
+      if(imageCount){
+        activeProductImageIndex=(activeProductImageIndex+Number(stepButton.dataset.productImageStep)+imageCount)%imageCount;
+        renderProductDetails();
+      }
+    }
+  });
+  document.addEventListener('keydown',event=>{
+    if(productModal.getAttribute('aria-hidden')!=='false') return;
+    if(event.key==='Escape'){
+      closeProductDetails();
+    }else if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
+      const imageCount=productImages(allProducts.find(item=>String(item.id)===String(activeProductId))||{}).length;
+      if(imageCount>1){
+        activeProductImageIndex=(activeProductImageIndex+(event.key==='ArrowRight'?1:-1)+imageCount)%imageCount;
+        renderProductDetails();
+      }
+    }
+  });
   document.getElementById('trackingForm').addEventListener('submit',trackOrder);
   document.getElementById('emailPreferencesForm').addEventListener('submit',updateEmailPreferences);
   document.getElementById('emailCampaignForm').addEventListener('submit',sendEmailCampaign);
